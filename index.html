@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>软通新闻智能整理器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 标题 -->
+        <h1 class="text-[clamp(1.5rem,3vw,2.2rem)] font-bold text-center text-blue-700 mb-6">软通新闻智能整理器</h1>
+
+        <!-- 主体分区 -->
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+            <!-- 新闻输入区域 -->
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h2 class="text-lg font-semibold mb-3">新闻内容输入</h2>
+                <textarea id="newsInput" class="w-full h-72 border border-gray-300 rounded p-2 resize-none" 
+                placeholder="请粘贴近30天新闻内容，多篇新闻之间使用空行分隔（支持20篇以上内容）"></textarea>
+                <div class="flex gap-3 mt-4">
+                    <button id="sortBtn" class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition">
+                        AI 智能整理
+                    </button>
+                    <button id="demoBtn" class="bg-gray-500 text-white px-5 py-2 rounded hover:bg-gray-600 transition">
+                        加载20篇示例新闻
+                    </button>
+                    <button id="clearBtn" class="bg-red-500 text-white px-5 py-2 rounded hover:bg-red-600 transition">
+                        清空内容
+                    </button>
+                </div>
+            </div>
+
+            <!-- 数据统计区域 -->
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h2 class="text-lg font-semibold mb-3">整理结果概览</h2>
+                <div class="space-y-3 text-base">
+                    <p>📰 新闻总篇数：<span id="totalCount" class="font-bold text-blue-600">0</span> 篇</p>
+                    <p>📅 时间范围：<span id="dateRange" class="font-bold">-</span></p>
+                    <p>🏷️ 高频关键词：<span id="hotKeys" class="font-bold text-orange-600">-</span></p>
+                </div>
+                <div class="mt-5">
+                    <input type="text" id="searchInput" placeholder="搜索标题/关键词筛选新闻" 
+                    class="w-full border border-gray-300 rounded p-2">
+                </div>
+            </div>
+        </div>
+
+        <!-- 新闻列表展示区 -->
+        <div class="bg-white p-4 rounded-lg shadow-md">
+            <h2 class="text-lg font-semibold mb-4">新闻详情列表</h2>
+            <div id="newsList" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // 20篇软通示例新闻数据
+        const demoNewsData = `
+2026-05-26 软通动力发布2026年Q1季度财报，营收稳步增长
+软通动力正式发布一季度财务报告，整体营收同比提升15%，数字化服务、AI解决方案成为核心增长引擎，各项经营指标表现良好。
+
+2026-05-25 软通动力与头部金融企业达成AI战略合作
+双方联合搭建金融AI应用平台，围绕智能风控、智能客服、智能数据分析三大方向开展深度合作，助力金融行业数字化升级。
+
+2026-05-24 软通动力入选工信部AI创新企业百强榜单
+凭借在大模型研发、智能运维、数字员工等领域的技术落地成果，成功入选国家级AI创新企业名录，技术实力获得官方认可。
+
+2026-05-23 软通新一代智能运维平台正式对外发布
+平台融合大模型与AIOps技术，实现设备故障自动识别、智能排查与自主修复，目前已在多家大型政企单位落地使用。
+
+2026-05-22 软通动力联合高校共建数字人才培养基地
+聚焦人工智能、大数据、云计算等前沿方向，定向培养产业数字化人才，缓解行业人才缺口问题。
+
+2026-05-21 软通动力中标大型央企数字化转型项目
+项目包含数据治理、ERP系统升级、智能决策平台建设，合同规模突破2亿元，彰显企业综合服务能力。
+
+2026-05-20 软通智脑行业大模型V2.0版本全新上线
+迭代后的大模型强化金融、制造、政务场景适配能力，支持私有化部署，适配国内政企安全合规要求。
+
+2026-05-19 软通动力参与编制企业AI安全行业白皮书
+作为核心参编单位，输出模型安全、数据安全、应用安全等落地规范，推动AI行业健康发展。
+
+2026-05-18 软通动力入选Gartner全球IT服务供应商名单
+业务覆盖国内及海外多地区，成为国内出海IT服务标杆企业之一。
+
+2026-05-17 智能客服解决方案落地大型保险企业
+AI客服实现95%常见问题自动应答，有效降低人工成本，同时提升客户服务满意度。
+
+2026-05-16 软通动力深化鲲鹏国产化生态合作
+完成上百款行业应用适配改造，推出全套国产化替代解决方案，助力信创产业发展。
+
+2026-05-15 数据治理平台V5.0发布，服务超500家政企客户
+平台支持多源数据整合、数据标准管理、数据血缘追踪，是数字化基建核心工具。
+
+2026-05-14 软通动力斩获数字化转型领军企业奖项
+连续多年获得行业权威奖项，成为国内数字化转型服务商标杆。
+
+2026-05-13 海外交付中心完成规模扩容
+东南亚、欧洲团队人员扩充，全面提升全球本地化交付与服务能力。
+
+2026-05-12 AI+RPA数字员工新品正式发布
+覆盖财务、人力、供应链等办公场景，自动化流程效率提升80%以上。
+
+2026-05-11 与阿里云联合推出政企云原生解决方案
+聚焦云迁移、云开发、智能运维，帮助传统企业快速完成上云转型。
+
+2026-05-10 发布《2026企业数字化转型白皮书》
+基于数千个落地项目总结行业趋势、技术路线与实战案例，为行业提供参考。
+
+2026-05-09 中标省级政务大数据平台建设项目
+搭建全省统一数据资源池与政务服务中台，服务千万市民日常政务办理。
+
+2026-05-08 AI视觉质检方案落地电子制造行业
+依托计算机视觉技术实现产品缺陷全自动检测，检测准确率高达99.5%。
+
+2026-05-07 启动千企AI赋能计划，助力中小企业数字化
+推出轻量化AI工具包，降低中小企业使用人工智能的门槛，覆盖生产、营销、管理场景。
+        `.trim();
+
+        let newsDataset = [];
+
+        // 解析新闻文本
+        function parseNews(text) {
+            const blocks = text.split(/\n\s*\n/).filter(item => item.trim());
+            const result = [];
+            blocks.forEach(block => {
+                const lines = block.trim().split('\n');
+                let date = "", title = "", content = "";
+                // 匹配日期格式
+                if (/^\d{4}-\d{2}-\d{2}/.test(lines[0])) {
+                    const firstLineArr = lines[0].split(' ');
+                    date = firstLineArr[0];
+                    title = firstLineArr.slice(1).join(' ');
+                    content = lines.slice(1).join(' ');
+                } else {
+                    title = lines[0];
+                    content = lines.slice(1).join(' ');
+                }
+                // 简易关键词提取
+                const wordList = (title + content).replace(/[，。、；：？！]/g, ' ').split(' ').filter(w => w.length >= 2);
+                const keywords = [...new Set(wordList)].slice(0, 5);
+                result.push({ date, title, content, keywords });
+            });
+            return result;
+        }
+
+        // 渲染统计信息
+        function renderSummary(list) {
+            const total = list.length;
+            document.getElementById('totalCount').innerText = total;
+
+            const dateList = list.map(item => item.date).filter(d => d);
+            let dateRange = "-";
+            if (dateList.length) {
+                dateRange = `${dateList[0]} ~ ${dateList[dateList.length - 1]}`;
+            }
+            document.getElementById('dateRange').innerText = dateRange;
+
+            // 统计高频词
+            const allKeys = [];
+            list.forEach(item => allKeys.push(...item.keywords));
+            const freqMap = {};
+            allKeys.forEach(word => freqMap[word] = (freqMap[word] || 0) + 1);
+            const hotWords = Object.entries(freqMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6)
+                .map(item => item[0]);
+            document.getElementById('hotKeys').innerText = hotWords.join('、') || "-";
+        }
+
+        // 渲染新闻列表
+        function renderNews(list, filter = "") {
+            const container = document.getElementById('newsList');
+            const filterList = list.filter(item => {
+                return item.title.includes(filter) || item.keywords.some(k => k.includes(filter));
+            });
+            let html = "";
+            filterList.forEach(item => {
+                html += `
+                <div class="border border-gray-200 rounded p-4 hover:shadow-sm transition">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-lg">${item.title}</h3>
+                        <span class="text-sm text-gray-500">${item.date || "未知日期"}</span>
+                    </div>
+                    <p class="text-gray-700 text-sm mb-2">${item.content}</p>
+                    <p class="text-xs text-blue-500">关键词：${item.keywords.join('、')}</p>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // 绑定按钮事件
+        document.getElementById('sortBtn').addEventListener('click', () => {
+            const inputVal = document.getElementById('newsInput').value;
+            newsDataset = parseNews(inputVal);
+            renderSummary(newsDataset);
+            renderNews(newsDataset);
+        });
+
+        document.getElementById('demoBtn').addEventListener('click', () => {
+            document.getElementById('newsInput').value = demoNewsData;
+            newsDataset = parseNews(demoNewsData);
+            renderSummary(newsDataset);
+            renderNews(newsDataset);
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('newsInput').value = "";
+            document.getElementById('newsList').innerHTML = "";
+            document.getElementById('totalCount').innerText = "0";
+            document.getElementById('dateRange').innerText = "-";
+            document.getElementById('hotKeys').innerText = "-";
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            renderNews(newsDataset, e.target.value.trim());
+        });
+    </script>
+</body>
+</html>
