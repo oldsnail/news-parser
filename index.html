@@ -5,55 +5,244 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>软通新闻智能整理器</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 淡入动画 */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.35s ease-out both;
+        }
+        /* 新闻卡片逐条延迟 */
+        .news-card:nth-child(1) { animation-delay: 0.03s; }
+        .news-card:nth-child(2) { animation-delay: 0.06s; }
+        .news-card:nth-child(3) { animation-delay: 0.09s; }
+        .news-card:nth-child(4) { animation-delay: 0.12s; }
+        .news-card:nth-child(5) { animation-delay: 0.15s; }
+        .news-card:nth-child(n+6) { animation-delay: 0.18s; }
+        /* 加载旋转 */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            width: 18px; height: 18px;
+            border: 2.5px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        /* Toast 通知 */
+        .toast {
+            position: fixed; top: 24px; right: 24px; z-index: 9999;
+            padding: 12px 24px; border-radius: 8px; color: #fff;
+            font-size: 14px; font-weight: 500;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+            animation: fadeInUp 0.3s ease-out;
+            transition: opacity 0.3s;
+        }
+        .toast-success { background: #16a34a; }
+        .toast-info { background: #2563eb; }
+        .toast-error { background: #dc2626; }
+        /* 关键词标签 */
+        .kw-tag {
+            display: inline-block;
+            background: #eff6ff; color: #2563eb;
+            padding: 2px 10px; border-radius: 9999px;
+            font-size: 12px; margin: 2px 4px 2px 0;
+            border: 1px solid #bfdbfe;
+        }
+        /* 空状态 */
+        .empty-state {
+            text-align: center; padding: 48px 16px; color: #9ca3af;
+        }
+        .empty-state svg { margin: 0 auto 16px; }
+        /* 高亮搜索匹配 */
+        mark {
+            background: #fde68a; color: inherit; border-radius: 2px; padding: 0 2px;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 md:p-6">
+<body class="bg-gray-50 min-h-screen p-4 md:p-6">
     <div class="max-w-7xl mx-auto">
         <!-- 标题 -->
-        <h1 class="text-[clamp(1.5rem,3vw,2.2rem)] font-bold text-center text-blue-700 mb-6">软通新闻智能整理器</h1>
+        <h1 class="text-[clamp(1.5rem,3vw,2.2rem)] font-bold text-center text-blue-700 mb-6">
+            软通新闻智能整理器
+        </h1>
 
         <!-- 主体分区 -->
         <div class="grid md:grid-cols-2 gap-6 mb-6">
             <!-- 新闻输入区域 -->
-            <div class="bg-white p-4 rounded-lg shadow-md">
-                <h2 class="text-lg font-semibold mb-3">新闻内容输入</h2>
-                <textarea id="newsInput" class="w-full h-72 border border-gray-300 rounded p-2 resize-none" 
-                placeholder="请粘贴近30天新闻内容，多篇新闻之间使用空行分隔（支持20篇以上内容）"></textarea>
-                <div class="flex gap-3 mt-4">
-                    <button id="sortBtn" class="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 transition">
+            <div class="bg-white p-5 rounded-xl shadow-md">
+                <h2 class="text-lg font-semibold mb-3" id="input-heading">新闻内容输入</h2>
+                <label for="newsInput" class="sr-only">请粘贴新闻内容</label>
+                <textarea id="newsInput"
+                    aria-labelledby="input-heading"
+                    class="w-full h-72 border border-gray-300 rounded-lg p-3 resize-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+                    placeholder="请粘贴近30天新闻内容，多篇新闻之间使用空行分隔&#10;支持的日期格式：2026-05-26 / 2026年5月26日 / 5月26日"></textarea>
+                <div class="flex flex-wrap gap-3 mt-4">
+                    <button id="sortBtn" aria-label="AI智能整理"
+                        class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 active:scale-95 transition font-medium">
                         AI 智能整理
                     </button>
-                    <button id="demoBtn" class="bg-gray-500 text-white px-5 py-2 rounded hover:bg-gray-600 transition">
-                        加载20篇示例新闻
+                    <button id="demoBtn" aria-label="加载20篇示例新闻"
+                        class="bg-gray-500 text-white px-5 py-2 rounded-lg hover:bg-gray-600 active:scale-95 transition font-medium">
+                        加载示例
                     </button>
-                    <button id="clearBtn" class="bg-red-500 text-white px-5 py-2 rounded hover:bg-red-600 transition">
-                        清空内容
+                    <button id="clearBtn" aria-label="清空所有内容"
+                        class="bg-red-500 text-white px-5 py-2 rounded-lg hover:bg-red-600 active:scale-95 transition font-medium">
+                        清空
+                    </button>
+                    <button id="exportBtn" aria-label="导出整理结果为文本文件"
+                        class="bg-emerald-600 text-white px-5 py-2 rounded-lg hover:bg-emerald-700 active:scale-95 transition font-medium">
+                        导出结果
                     </button>
                 </div>
             </div>
 
             <!-- 数据统计区域 -->
-            <div class="bg-white p-4 rounded-lg shadow-md">
-                <h2 class="text-lg font-semibold mb-3">整理结果概览</h2>
+            <div class="bg-white p-5 rounded-xl shadow-md">
+                <h2 class="text-lg font-semibold mb-3" id="stats-heading">整理结果概览</h2>
                 <div class="space-y-3 text-base">
                     <p>📰 新闻总篇数：<span id="totalCount" class="font-bold text-blue-600">0</span> 篇</p>
                     <p>📅 时间范围：<span id="dateRange" class="font-bold">-</span></p>
                     <p>🏷️ 高频关键词：<span id="hotKeys" class="font-bold text-orange-600">-</span></p>
                 </div>
                 <div class="mt-5">
-                    <input type="text" id="searchInput" placeholder="搜索标题/关键词筛选新闻" 
-                    class="w-full border border-gray-300 rounded p-2">
+                    <label for="searchInput" class="sr-only">搜索新闻</label>
+                    <input type="text" id="searchInput"
+                        aria-label="搜索标题、正文、关键词"
+                        placeholder="搜索标题 / 正文 / 关键词"
+                        class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition">
                 </div>
+                <p id="searchHint" class="text-xs text-gray-400 mt-2 hidden"></p>
             </div>
         </div>
 
         <!-- 新闻列表展示区 -->
-        <div class="bg-white p-4 rounded-lg shadow-md">
-            <h2 class="text-lg font-semibold mb-4">新闻详情列表</h2>
-            <div id="newsList" class="space-y-4"></div>
+        <div class="bg-white p-5 rounded-xl shadow-md">
+            <h2 class="text-lg font-semibold mb-4" id="list-heading">新闻详情列表</h2>
+            <div id="newsList" class="space-y-4" role="list" aria-labelledby="list-heading"></div>
         </div>
+
+        <!-- 页脚 -->
+        <footer class="text-center text-xs text-gray-400 mt-8 pb-4">
+            软通新闻智能整理器 &mdash; 数据仅在本地浏览器处理，不上传任何服务器
+        </footer>
     </div>
 
     <script>
+        // ==================== 工具函数 ====================
+
+        // HTML 转义，防止 XSS
+        function escapeHtml(str) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(str).replace(/[&<>"']/g, c => map[c]);
+        }
+
+        // Toast 通知（替代 alert）
+        function showToast(msg, type = 'info', duration = 2500) {
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, duration);
+        }
+
+        // ==================== 中文分词与关键词提取 ====================
+
+        // 停用词表
+        const STOP_WORDS = new Set([
+            '的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '一个',
+            '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好',
+            '自己', '这', '他', '她', '它', '们', '那', '些', '什么', '为', '所', '与',
+            '等', '及', '其', '或', '之', '对', '将', '被', '从', '而', '以', '及', '于',
+            '中', '能', '可', '更', '已', '让', '此', '该', '每', '各', '多', '做',
+            '成', '出', '使', '把', '则', '如', '下', '用', '还', '因', '但', '给',
+            '通过', '进行', '实现', '成为', '作为', '以及', '同时', '并且', '目前',
+            '已经', '正式', '持续', '不断', '全面', '进一步', '围绕', '开展', '其中',
+        ]);
+
+        // 提取中文 bigram + 按标点切分的短语
+        function extractChineseWords(text) {
+            const words = [];
+
+            // 1. 按标点/空格切分为短语段
+            const segments = text.replace(/[，。、；：？！\s\n\r—…""''【】《》（）\[\]{}()]/g, '|')
+                                 .split('|')
+                                 .filter(s => s.length > 0);
+            for (const seg of segments) {
+                // 2-4字的有意义短词直接保留
+                if (seg.length >= 2 && seg.length <= 4 && !STOP_WORDS.has(seg)) {
+                    words.push(seg);
+                }
+                // 从较长短语中提取 bigram
+                if (seg.length >= 3) {
+                    for (let i = 0; i <= seg.length - 2; i++) {
+                        const bigram = seg.substring(i, i + 2);
+                        if (!STOP_WORDS.has(bigram) && !/^\d+$/.test(bigram)) {
+                            words.push(bigram);
+                        }
+                    }
+                }
+                // 从较长文本提取 trigram
+                if (seg.length >= 4) {
+                    for (let i = 0; i <= seg.length - 3; i++) {
+                        const trigram = seg.substring(i, i + 3);
+                        if (!STOP_WORDS.has(trigram) && !/^\d+$/.test(trigram)) {
+                            words.push(trigram);
+                        }
+                    }
+                }
+            }
+
+            // 2. 英文单词提取
+            const engMatches = text.match(/[a-zA-Z][a-zA-Z0-9]{1,20}/g) || [];
+            words.push(...engMatches.map(w => w.toLowerCase()));
+
+            return words;
+        }
+
+        // 关键词提取：词频排序 + 去重
+        function extractKeywords(text, topN = 6) {
+            const words = extractChineseWords(text);
+            const freqMap = {};
+            for (const w of words) {
+                freqMap[w] = (freqMap[w] || 0) + 1;
+            }
+            // 按频率排序，取 topN
+            return Object.entries(freqMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, topN)
+                .map(item => item[0]);
+        }
+
+        // ==================== 日期解析 ====================
+
+        function parseDate(str) {
+            if (!str) return '';
+            str = str.trim();
+
+            // 2026-05-26 或 2026/05/26
+            let m = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+            if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+
+            // 2026年5月26日
+            m = str.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日?/);
+            if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+
+            // 5月26日（默认2026年）
+            m = str.match(/^(\d{1,2})月(\d{1,2})日?/);
+            if (m) return `2026-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+
+            return '';
+        }
+
+        // ==================== 新闻解析 ====================
+
         // 20篇软通示例新闻数据
         const demoNewsData = `
 2026-05-26 软通动力发布2026年Q1季度财报，营收稳步增长
@@ -119,83 +308,199 @@ AI客服实现95%常见问题自动应答，有效降低人工成本，同时提
 
         let newsDataset = [];
 
-        // 解析新闻文本
         function parseNews(text) {
             const blocks = text.split(/\n\s*\n/).filter(item => item.trim());
             const result = [];
             blocks.forEach(block => {
-                const lines = block.trim().split('\n');
+                const lines = block.trim().split('\n').map(l => l.trim()).filter(l => l);
+                if (!lines.length) return;
+
                 let date = "", title = "", content = "";
-                // 匹配日期格式
-                if (/^\d{4}-\d{2}-\d{2}/.test(lines[0])) {
-                    const firstLineArr = lines[0].split(' ');
-                    date = firstLineArr[0];
-                    title = firstLineArr.slice(1).join(' ');
+
+                // 尝试从第一行提取日期
+                const firstLine = lines[0];
+                const dateMatch = firstLine.match(/^(\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?|\d{1,2}月\d{1,2}日?)/);
+
+                if (dateMatch) {
+                    date = parseDate(dateMatch[1]);
+                    // 去掉日期部分，剩余为标题
+                    title = firstLine.replace(dateMatch[0], '').trim();
                     content = lines.slice(1).join(' ');
                 } else {
-                    title = lines[0];
+                    title = firstLine;
                     content = lines.slice(1).join(' ');
                 }
-                // 简易关键词提取
-                const wordList = (title + content).replace(/[，。、；：？！]/g, ' ').split(' ').filter(w => w.length >= 2);
-                const keywords = [...new Set(wordList)].slice(0, 5);
+
+                // 改进的关键词提取
+                const keywords = extractKeywords(title + ' ' + content);
+
                 result.push({ date, title, content, keywords });
             });
+            // 按日期降序排列
+            result.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
             return result;
         }
 
-        // 渲染统计信息
+        // ==================== 渲染函数 ====================
+
         function renderSummary(list) {
             const total = list.length;
-            document.getElementById('totalCount').innerText = total;
+            document.getElementById('totalCount').textContent = total;
 
-            const dateList = list.map(item => item.date).filter(d => d);
+            const dateList = list.map(item => item.date).filter(d => d).sort();
             let dateRange = "-";
             if (dateList.length) {
                 dateRange = `${dateList[0]} ~ ${dateList[dateList.length - 1]}`;
             }
-            document.getElementById('dateRange').innerText = dateRange;
+            document.getElementById('dateRange').textContent = dateRange;
 
-            // 统计高频词
+            // 全局高频词统计
             const allKeys = [];
             list.forEach(item => allKeys.push(...item.keywords));
             const freqMap = {};
-            allKeys.forEach(word => freqMap[word] = (freqMap[word] || 0) + 1);
+            allKeys.forEach(w => freqMap[w] = (freqMap[w] || 0) + 1);
             const hotWords = Object.entries(freqMap)
                 .sort((a, b) => b[1] - a[1])
-                .slice(0, 6)
+                .slice(0, 8)
                 .map(item => item[0]);
-            document.getElementById('hotKeys').innerText = hotWords.join('、') || "-";
+            document.getElementById('hotKeys').textContent = hotWords.join('、') || "-";
         }
 
-        // 渲染新闻列表
+        // 高亮匹配文本
+        function highlightMatch(text, keyword) {
+            if (!keyword) return escapeHtml(text);
+            const escaped = escapeHtml(text);
+            const kw = escapeHtml(keyword);
+            const regex = new RegExp(`(${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return escaped.replace(regex, '<mark>$1</mark>');
+        }
+
         function renderNews(list, filter = "") {
             const container = document.getElementById('newsList');
+            const filterLower = filter.toLowerCase();
+
             const filterList = list.filter(item => {
-                return item.title.includes(filter) || item.keywords.some(k => k.includes(filter));
+                if (!filter) return true;
+                return item.title.toLowerCase().includes(filterLower)
+                    || item.content.toLowerCase().includes(filterLower)
+                    || item.keywords.some(k => k.toLowerCase().includes(filterLower));
             });
+
+            // 搜索提示
+            const hint = document.getElementById('searchHint');
+            if (filter) {
+                hint.textContent = `找到 ${filterList.length} 篇匹配新闻`;
+                hint.classList.remove('hidden');
+            } else {
+                hint.classList.add('hidden');
+            }
+
+            // 空状态
+            if (filterList.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg class="w-16 h-16 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <p class="text-gray-400">${filter ? '未找到匹配的新闻' : '请在左侧输入新闻内容，点击「AI 智能整理」开始'}</p>
+                    </div>`;
+                return;
+            }
+
             let html = "";
             filterList.forEach(item => {
+                const kwTags = item.keywords.map(k => {
+                    const display = filter ? highlightMatch(k, filter) : escapeHtml(k);
+                    return `<span class="kw-tag">${display}</span>`;
+                }).join('');
+
                 html += `
-                <div class="border border-gray-200 rounded p-4 hover:shadow-sm transition">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-semibold text-lg">${item.title}</h3>
-                        <span class="text-sm text-gray-500">${item.date || "未知日期"}</span>
+                <div class="news-card fade-in-up border border-gray-200 rounded-lg p-4 hover:shadow-md transition" role="listitem">
+                    <div class="flex justify-between items-start mb-2 gap-2">
+                        <h3 class="font-semibold text-lg leading-snug">${filter ? highlightMatch(item.title, filter) : escapeHtml(item.title)}</h3>
+                        <span class="text-sm text-gray-400 whitespace-nowrap flex-shrink-0">${escapeHtml(item.date || "未知日期")}</span>
                     </div>
-                    <p class="text-gray-700 text-sm mb-2">${item.content}</p>
-                    <p class="text-xs text-blue-500">关键词：${item.keywords.join('、')}</p>
-                </div>
-                `;
+                    <p class="text-gray-600 text-sm mb-3 leading-relaxed">${filter ? highlightMatch(item.content, filter) : escapeHtml(item.content)}</p>
+                    <div class="flex flex-wrap items-center gap-1">
+                        <span class="text-xs text-gray-400 mr-1">关键词：</span>${kwTags}
+                    </div>
+                </div>`;
             });
             container.innerHTML = html;
         }
 
-        // 绑定按钮事件
-        document.getElementById('sortBtn').addEventListener('click', () => {
-            const inputVal = document.getElementById('newsInput').value;
-            newsDataset = parseNews(inputVal);
-            renderSummary(newsDataset);
-            renderNews(newsDataset);
+        // ==================== localStorage 持久化 ====================
+
+        const STORAGE_KEY = 'softone_news_sorter';
+
+        function saveToLocal(data) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) { /* 存储满等异常忽略 */ }
+        }
+
+        function loadFromLocal() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        function clearLocal() {
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        }
+
+        // ==================== 导出功能 ====================
+
+        function exportResult() {
+            if (!newsDataset.length) {
+                showToast('暂无数据可导出', 'error');
+                return;
+            }
+            let text = `软通新闻智能整理结果\n导出时间：${new Date().toLocaleString('zh-CN')}\n${'='.repeat(50)}\n\n`;
+            newsDataset.forEach((item, i) => {
+                text += `【${i + 1}】${item.title}\n`;
+                text += `日期：${item.date || '未知'}\n`;
+                text += `${item.content}\n`;
+                text += `关键词：${item.keywords.join('、')}\n`;
+                text += `${'-'.repeat(40)}\n\n`;
+            });
+            text += `\n共 ${newsDataset.length} 篇新闻`;
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `软通新闻整理_${new Date().toISOString().slice(0,10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('导出成功', 'success');
+        }
+
+        // ==================== 事件绑定 ====================
+
+        document.getElementById('sortBtn').addEventListener('click', function () {
+            const inputVal = document.getElementById('newsInput').value.trim();
+            if (!inputVal) {
+                showToast('请先输入新闻内容', 'error');
+                return;
+            }
+            // 加载动画
+            const btn = this;
+            const originalText = btn.textContent;
+            btn.innerHTML = '<span class="spinner"></span>整理中...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                newsDataset = parseNews(inputVal);
+                renderSummary(newsDataset);
+                renderNews(newsDataset);
+                saveToLocal(newsDataset);
+                btn.textContent = originalText;
+                btn.disabled = false;
+                showToast(`成功整理 ${newsDataset.length} 篇新闻`, 'success');
+            }, 300);
         });
 
         document.getElementById('demoBtn').addEventListener('click', () => {
@@ -203,19 +508,39 @@ AI客服实现95%常见问题自动应答，有效降低人工成本，同时提
             newsDataset = parseNews(demoNewsData);
             renderSummary(newsDataset);
             renderNews(newsDataset);
+            saveToLocal(newsDataset);
+            showToast('已加载20篇示例新闻', 'info');
         });
 
         document.getElementById('clearBtn').addEventListener('click', () => {
             document.getElementById('newsInput').value = "";
             document.getElementById('newsList').innerHTML = "";
-            document.getElementById('totalCount').innerText = "0";
-            document.getElementById('dateRange').innerText = "-";
-            document.getElementById('hotKeys').innerText = "-";
+            document.getElementById('totalCount').textContent = "0";
+            document.getElementById('dateRange').textContent = "-";
+            document.getElementById('hotKeys').textContent = "-";
+            document.getElementById('searchInput').value = "";
+            document.getElementById('searchHint').classList.add('hidden');
+            newsDataset = [];
+            clearLocal();
+            showToast('已清空所有内容', 'info');
         });
 
         document.getElementById('searchInput').addEventListener('input', (e) => {
             renderNews(newsDataset, e.target.value.trim());
         });
+
+        document.getElementById('exportBtn').addEventListener('click', exportResult);
+
+        // ==================== 初始化：恢复缓存数据 ====================
+
+        (function init() {
+            const cached = loadFromLocal();
+            if (cached && cached.length) {
+                newsDataset = cached;
+                renderSummary(newsDataset);
+                renderNews(newsDataset);
+            }
+        })();
     </script>
 </body>
 </html>
